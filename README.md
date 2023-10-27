@@ -51,10 +51,8 @@ Make sure to replace `OPENAI_API_KEY` with the actual environment variables you 
 2. Run the script and provide the necessary arguments.
 
 ```bash
-python <script_name>.py --url "https://www.npr.org" --selector "[class~="story-web"]"
+python scraper.py --url "https://www.npr.org" --selector "[class~="story-web"]"
 ```
-
-Replace `<script_name>.py` with the actual name of the script file.
 
 ## Command-Line Arguments:
 
