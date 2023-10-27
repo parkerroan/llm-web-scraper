@@ -114,9 +114,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Web scraper and story extractor.')
     parser.add_argument('url', type=str, help='The URL to scrape content from. ex: "https://www.npr.org"')
-    parser.add_argument('--selector', type=str, default="[data-component-name='card']", help='The CSS selector to identify the elements to extract. ex: "[class~="story-wrap"]"')
+    parser.add_argument('--selector', type=str, default="article, .post", help='The CSS selector to identify the elements to extract. ex: "[class~="story-wrap"]"')
     args = parser.parse_args()
-    
+
     output = main(args.url, element_selector=args.selector)
 
     parsed_url = urlparse(args.url)
