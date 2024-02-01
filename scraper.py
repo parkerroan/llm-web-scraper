@@ -19,31 +19,32 @@ def clean_html_extract_text(soup: BeautifulSoup) -> str:
 
     # Iterate over all img tags and replace them with their src and alt attributes
     for img in soup.find_all('img'):
-        if img.has_attr('src'):
-            alt_text = img.get('alt', '')  # Get alt text, default to an empty string if not present
-            new_content = f"[Image: {alt_text}] {img['src']}"
-            new_tag = NavigableString(new_content)
-            img.replace_with(new_tag)
+        alt_text = img.get('alt', '')  # Get alt text, default to an empty string if not present
+        new_content = f"[Image: {alt_text}] ({img['src']})"
+        new_tag = NavigableString(new_content)
+        img.replace_with(new_tag)
 
-    # Iterate over all a tags and replace them with their href attribute and inner text
+    # Iterate over all a tags
     for a in soup.find_all('a'):
-        if a.has_attr('href'):
-            link_text = a.get_text(strip=True)
-            new_content = f"[Link: {link_text}] {a['href']}"
+        link_text = a.get_text(strip=True)
+        if link_text:  # if the anchor has significant text, append the href
+            new_content = f"[{link_text}] ({a['href']})"
             new_tag = NavigableString(new_content)
             a.replace_with(new_tag)
+        else:  # if the anchor only wraps an image, remove the anchor but keep the image
+            a.unwrap()
 
     # Get the modified content
     modified_content = soup.get_text(strip=True)
 
-    # Remove multiple line breaks and spaces
     return modified_content
 
 def extract_elements_from_content(page_source: str, element_selector: str = None) -> list:
     soup = BeautifulSoup(page_source, "html.parser")
 
     story_elements = None
-    if element_selector is None:
+    if element_selector is not None:
+        breakpoint()
         story_elements = soup.body.select(element_selector)
     else: 
         story_elements = soup.body.select("article, .post") # default which may work for some news sites
@@ -67,7 +68,7 @@ def load_schema_from_file(filename: str) -> dict:
         schema = json.load(file)
     return schema
 
-def main(url: str, element_selector: str = None):
+def main(url: str, element_selector: str = None, schema_file: str = "schema.json"):
     page_source = fetch_webpage_content(url)
     els = extract_elements_from_content(page_source, element_selector=element_selector)
 
@@ -87,14 +88,16 @@ def main(url: str, element_selector: str = None):
     texts = splitter.create_documents([content])
 
     # Schema
-    schema = load_schema_from_file("schema.json")
+    schema = load_schema_from_file(schema_file)
 
     template = """
     Extract and save the relevant entities mentioned in the following passage together with their properties.
 
     Only extract the properties mentioned in the 'information_extraction' function.
 
-    For context, the unstructured text in the passage has been pulled from html elements on a webpage.
+    For context, the unstructured text in the passage has been pulled from html elements on a webpage.  
+    
+    \n<-->\n is the separator between the elements in the passage indicating appropriate separation for extraction.
 
     If a property is not present and is not required in the function parameters, do not include it in the output. 
 
@@ -102,7 +105,8 @@ def main(url: str, element_selector: str = None):
     {input}
     """
     prompt=ChatPromptTemplate.from_template(template)
-    llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo-16k")
+    # llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
+    llm = ChatOpenAI(temperature=0, model="gpt-4")
 
     chain = create_extraction_chain(schema, llm, prompt=prompt, verbose=True)
     output = chain.run(texts[0])
@@ -115,9 +119,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Web scraper and story extractor.')
     parser.add_argument('url', type=str, help='The URL to scrape content from. ex: "https://www.npr.org"')
     parser.add_argument('--selector', type=str, default="article, .post", help='The CSS selector to identify the elements to extract. ex: "[class~="story-wrap"]"')
+    parser.add_argument('--schema', type=str, default="shema.json", help='The filename of the schema to use. ex: "schema.json"')
     args = parser.parse_args()
 
-    output = main(args.url, element_selector=args.selector)
+    output = main(args.url, element_selector=args.selector, schema_file=args.schema)
 
     parsed_url = urlparse(args.url)
     # Take the netloc (domain) and replace non-alphanumeric characters with underscores
@@ -125,8 +130,8 @@ if __name__ == "__main__":
     
     # Write to CSV
     with open(f"{filename}.csv", 'w', newline='') as csvfile:
-        fieldnames = ['title', 'summary', 'image_url', 'link']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        # fieldnames = ['title', 'summary', 'image_url', 'link']
+        writer = csv.DictWriter(csvfile, fieldnames=output[0].keys())
         writer.writeheader()
         for content in output:
             json_formatted_str = json.dumps(content, indent=2)

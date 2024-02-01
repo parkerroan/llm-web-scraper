@@ -5,5 +5,5 @@
         "image_url": {"type": "string", "format": "uri"},
         "link": {"type": "string", "format": "uri"}
     },
-    "required": ["title", "summary", "image_url", "link"]
+    "required": ["title", "link"]
 }

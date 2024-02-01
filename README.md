@@ -51,13 +51,14 @@ Make sure to replace `OPENAI_API_KEY` with the actual environment variables you 
 2. Run the script and provide the necessary arguments.
 
 ```bash
-python scraper.py --url "https://www.npr.org" --selector "[class~="story-web"]"
+python scraper.py "https://www.npr.org" --selector "[class~='story-web']"
 ```
 
 ## Command-Line Arguments:
 
 - `url`: The URL to scrape content from. Example: `"https://www.npr.org"`
-- `--selector`: (Optional) The CSS selector to identify the elements to extract. Default is `[data-component-name='card']`. Example: `[class~='story-wrap']`
+- `--selector`: (Optional) The CSS selector to identify the elements to extract. Example: `[class~='story-wrap']`
+- `--schema`: (Optional) The schema json filename for the structured data
 
 ## Output:
 
