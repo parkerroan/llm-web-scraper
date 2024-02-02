@@ -44,7 +44,6 @@ def extract_elements_from_content(page_source: str, element_selector: str = None
 
     story_elements = None
     if element_selector is not None:
-        breakpoint()
         story_elements = soup.body.select(element_selector)
     else: 
         story_elements = soup.body.select("article, .post") # default which may work for some news sites
@@ -77,7 +76,7 @@ def main(url: str, element_selector: str = None, schema_file: str = "schema.json
 
     # Split the content into chunks
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=5000,
+        chunk_size=15000,
         chunk_overlap=0,
         separators=["\n<-->\n"],
         length_function=len,
@@ -106,10 +105,13 @@ def main(url: str, element_selector: str = None, schema_file: str = "schema.json
     """
     prompt=ChatPromptTemplate.from_template(template)
     # llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
-    llm = ChatOpenAI(temperature=0, model="gpt-4")
+    llm = ChatOpenAI(temperature=0, model="gpt-4-turbo-preview")
 
     chain = create_extraction_chain(schema, llm, prompt=prompt, verbose=True)
-    output = chain.run(texts[0])
+    output = []
+    for text in texts:
+        res = chain.run(text)
+        output.extend(res)
 
     return output
 
@@ -119,7 +121,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Web scraper and story extractor.')
     parser.add_argument('url', type=str, help='The URL to scrape content from. ex: "https://www.npr.org"')
     parser.add_argument('--selector', type=str, default="article, .post", help='The CSS selector to identify the elements to extract. ex: "[class~="story-wrap"]"')
-    parser.add_argument('--schema', type=str, default="shema.json", help='The filename of the schema to use. ex: "schema.json"')
+    parser.add_argument('--schema', type=str, default="schema.json", help='The filename of the schema to use. ex: "schema.json"')
     args = parser.parse_args()
 
     output = main(args.url, element_selector=args.selector, schema_file=args.schema)
@@ -130,8 +132,9 @@ if __name__ == "__main__":
     
     # Write to CSV
     with open(f"{filename}.csv", 'w', newline='') as csvfile:
-        # fieldnames = ['title', 'summary', 'image_url', 'link']
-        writer = csv.DictWriter(csvfile, fieldnames=output[0].keys())
+        # Pull the field names
+        schema = json.loads(open(args.schema).read()) 
+        writer = csv.DictWriter(csvfile, fieldnames=schema["properties"].keys())
         writer.writeheader()
         for content in output:
             json_formatted_str = json.dumps(content, indent=2)
